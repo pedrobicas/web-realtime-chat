@@ -1,4 +1,5 @@
-/* You can add global styles to this file, and also import other style files */
+/* Import variables */
+@import './styles/variables.scss';
 
 /* Global styles for Real Time Chat*/
 * {
@@ -16,37 +17,48 @@ html, body {
 }
 
 body {
-  background: #0f172a;
-  color: #f1f5f9;
+  background: var(--bg);
+  color: var(--text);
 }
 
 /* CSS Variables for theming */
 :root {
   /* Colors */
-  --primary: #6366f1;
-  --primary-hover: #5b5af5;
-  --primary-light: #a5b4fc;
-  --secondary: #64748b;
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --info: #3b82f6;
+  --primary: #{$primary};
+  --primary-hover: #{$primary-hover};
+  --primary-light: #{$primary-light};
+  --secondary: #{$secondary};
+  --success: #{$success};
+  --danger: #{$danger};
+  --warning: #{$warning};
+  --info: #{$info};
 
   /* Light theme */
-  --bg-light: #f8fafc;
-  --bg-card-light: #ffffff;
-  --text-light: #1e293b;
-  --text-muted-light: #64748b;
-  --border-light: #e2e8f0;
-  --shadow-light: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --bg-light: #{$bg-light};
+  --bg-card-light: #{$bg-card-light};
+  --text-light: #{$text-light};
+  --text-muted-light: #{$text-muted-light};
+  --border-light: #{$border-light};
+  --shadow-light: #{$shadow-light};
 
   /* Dark theme */
-  --bg-dark: #0f172a;
-  --bg-card-dark: #1e293b;
-  --text-dark: #f1f5f9;
-  --text-muted-dark: #94a3b8;
-  --border-dark: #334155;
-  --shadow-dark: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --bg-dark: #{$bg-dark};
+  --bg-card-dark: #{$bg-card-dark};
+  --text-dark: #{$text-dark};
+  --text-muted-dark: #{$text-muted-dark};
+  --border-dark: #{$border-dark};
+  --shadow-dark: #{$shadow-dark};
+
+  /* Status colors */
+  --status-online: #{$status-online};
+  --status-away: #{$status-away};
+  --status-busy: #{$status-busy};
+  --status-offline: #{$status-offline};
+
+  /* Connection status colors */
+  --connection-connected: #{$connection-connected};
+  --connection-connecting: #{$connection-connecting};
+  --connection-disconnected: #{$connection-disconnected};
 }
 
 [data-theme="light"] {
@@ -59,12 +71,18 @@ body {
 }
 
 [data-theme="dark"] {
-  --bg: var(--bg-dark);
-  --bg-card: var(--bg-card-dark);
-  --text: var(--text-dark);
-  --text-muted: var(--text-muted-dark);
-  --border: var(--border-dark);
-  --shadow: var(--shadow-dark);
+  /* Modern black/gray palette */
+  --bg: #{$bg-dark-modern};
+  --bg-card: #{$bg-card-dark-modern};
+  --text: #{$text-dark-modern};
+  --text-muted: #{$text-muted-dark-modern};
+  --border: #{$border-dark-modern};
+  --shadow: #{$shadow-dark-modern};
+
+  /* Blue accents */
+  --primary: #{$info};        /* blue-500 */
+  --primary-hover: #2563eb;  /* blue-600 */
+  --primary-light: #60a5fa;  /* blue-400 */
 }
 
 /* Scrollbar styles */

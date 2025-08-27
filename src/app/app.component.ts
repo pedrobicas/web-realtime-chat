@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ChatComponent } from './components/chat/chat.component';
+import { PrivateChatService } from './services/private-chat.service';
 
 @Component({
   selector: 'app-root',
@@ -12,9 +13,10 @@ import { ChatComponent } from './components/chat/chat.component';
 export class AppComponent implements OnInit {
   title = 'Real Time Chat';
 
+  constructor(private privateChatService: PrivateChatService) {}
+
   ngOnInit(): void {
-    // Set default theme
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    document.body.setAttribute('data-theme', savedTheme);
+    const savedTheme = localStorage.getItem('chat-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
   }
 }

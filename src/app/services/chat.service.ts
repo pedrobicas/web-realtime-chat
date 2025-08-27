@@ -7,15 +7,17 @@ declare const SockJS: any;
 declare const Stomp: any;
 
 export interface ChatMessage {
-  type: 'CHAT' | 'JOIN' | 'LEAVE' | 'SYSTEM_ANNOUNCEMENT' | 'ERROR';
+  type: 'CHAT' | 'JOIN' | 'LEAVE' | 'SYSTEM_ANNOUNCEMENT' | 'ERROR' | 'PRIVATE_MESSAGE';
   content?: string;
   sender?: string;
+  recipient?: string;
   timestamp?: Date;
   formattedTime?: string;
   onlineCount?: number;
   mentions?: string[];
   color?: string;
   avatar?: string;
+  isPrivate?: boolean;
 }
 
 export interface User {
@@ -49,6 +51,7 @@ export class ChatService {
   });
   private typingSubject = new Subject<{ sender: string; isTyping: boolean }>();
   private notificationsSubject = new Subject<{ message: string; type: 'success' | 'error' | 'warning' | 'info' }>();
+  private privateMessageSubject = new Subject<ChatMessage>();
 
   // Public observables
   public messages$ = this.messagesSubject.asObservable();
@@ -56,6 +59,7 @@ export class ChatService {
   public connectionStatus$ = this.connectionStatusSubject.asObservable();
   public typing$ = this.typingSubject.asObservable();
   public notifications$ = this.notificationsSubject.asObservable();
+  public privateMessages$ = this.privateMessageSubject.asObservable();
 
   constructor() {}
 
@@ -65,7 +69,7 @@ export class ChatService {
       this.updateConnectionStatus('connecting', 'Conectando...');
 
       try {
-        const socket = new SockJS(environment.wsUrl);
+        const socket = new SockJS(`${environment.wsUrl}?username=${encodeURIComponent(this.username)}`);
         this.stompClient = Stomp.over(socket);
         this.stompClient.debug = null; // Disable console logs
 
@@ -103,6 +107,7 @@ export class ChatService {
       this.onTypingReceived(message);
     });
 
+    // Assinar destino padrão de usuário para mensagens privadas
     this.stompClient.subscribe('/user/queue/private', (message: any) => {
       this.onPrivateMessageReceived(message);
     });
@@ -115,13 +120,20 @@ export class ChatService {
       this.onHistoryReceived(message);
     });
 
-    // Add user to chat
-    const joinMessage: ChatMessage = {
-      type: 'JOIN',
-      sender: this.username
-    };
+    // Add user to chat - apenas se não estiver já conectado
+    const currentMessages = this.messagesSubject.value;
+    const alreadyJoined = currentMessages.some(msg => 
+      msg.type === 'JOIN' && msg.sender === this.username
+    );
+    
+    if (!alreadyJoined) {
+      const joinMessage: ChatMessage = {
+        type: 'JOIN',
+        sender: this.username
+      };
 
-    this.stompClient.send('/app/chat.addUser', {}, JSON.stringify(joinMessage));
+      this.stompClient.send('/app/chat.addUser', {}, JSON.stringify(joinMessage));
+    }
 
     // Clear reconnection interval
     if (this.reconnectInterval) {
@@ -161,7 +173,7 @@ export class ChatService {
 
   private onTypingReceived(payload: any): void {
     const message = JSON.parse(payload.body);
-    if (message.sender !== this.username) {
+    if (message.sender && message.sender !== this.username) {
       this.typingSubject.next({ sender: message.sender, isTyping: true });
       
       // Auto hide typing indicator after 3 seconds
@@ -173,7 +185,10 @@ export class ChatService {
 
   private onPrivateMessageReceived(payload: any): void {
     const message: ChatMessage = JSON.parse(payload.body);
-    this.processMessage(message, true);
+    console.log('Mensagem privada recebida:', message);
+    
+    // Emitir evento para o PrivateChatService processar
+    this.privateMessageSubject.next(message);
   }
 
   private onMentionReceived(payload: any): void {
@@ -198,8 +213,18 @@ export class ChatService {
       return;
     }
 
+    // Verificar se a mensagem já existe para evitar duplicação
     const currentMessages = this.messagesSubject.value;
-    this.messagesSubject.next([...currentMessages, message]);
+    const messageExists = currentMessages.some(existing => 
+      existing.type === message.type && 
+      existing.sender === message.sender && 
+      (existing.timestamp === message.timestamp || 
+       (existing.type === 'JOIN' && existing.sender === message.sender))
+    );
+
+    if (!messageExists) {
+      this.messagesSubject.next([...currentMessages, message]);
+    }
   }
 
   sendMessage(content: string): void {
@@ -214,9 +239,27 @@ export class ChatService {
     this.stompClient.send('/app/chat.send', {}, JSON.stringify(message));
   }
 
+  sendPrivateMessage(content: string, recipient: string): void {
+    if (!this.connected || !this.stompClient) return;
+
+    const message: ChatMessage = {
+      type: 'PRIVATE_MESSAGE',
+      content: content,
+      sender: this.username,
+      recipient: recipient,
+      isPrivate: true
+    };
+
+    this.stompClient.send('/app/chat.private', {}, JSON.stringify(message));
+  }
+
   sendTyping(): void {
     if (this.connected && this.stompClient) {
-      this.stompClient.send('/app/chat.typing', {}, JSON.stringify({}));
+      const typingMessage = {
+        sender: this.username,
+        timestamp: new Date().toISOString()
+      };
+      this.stompClient.send('/app/chat.typing', {}, JSON.stringify(typingMessage));
     }
   }
 
@@ -226,6 +269,10 @@ export class ChatService {
     }
     this.connected = false;
     this.updateConnectionStatus('disconnected', 'Desconectado');
+    
+    // Limpar mensagens e usuários ao desconectar
+    this.messagesSubject.next([]);
+    this.usersSubject.next([]);
     
     if (this.reconnectInterval) {
       clearInterval(this.reconnectInterval);
