@@ -150,6 +150,3 @@ npm test          # Testes unitários
 
 Projeto sob licença MIT.
 
----
-
-Interface moderna e responsiva para o seu chat em tempo real! 🚀
