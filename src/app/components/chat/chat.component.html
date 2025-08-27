@@ -1,0 +1,220 @@
+<!-- Overlay for mobile sidebar -->
+<div class="overlay" *ngIf="showSidebar" (click)="showSidebar = false"></div>
+
+<!-- Notifications container -->
+<div class="notifications">
+  <div 
+    *ngFor="let notification of notifications" 
+    class="notification {{ notification.type }} show"
+    (click)="removeNotification(notification.id)"
+  >
+    <div class="notification-icon">
+      <i class="fas" [ngClass]="{
+        'fa-check': notification.type === 'success',
+        'fa-exclamation-triangle': notification.type === 'error',
+        'fa-exclamation-circle': notification.type === 'warning',
+        'fa-info-circle': notification.type === 'info'
+      }"></i>
+    </div>
+    <div class="notification-content">
+      <div class="notification-message">{{ notification.message }}</div>
+    </div>
+    <button class="notification-close" (click)="removeNotification(notification.id)">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Main app container -->
+<div class="app-container">
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <i class="fas fa-comments"></i>
+      <span>Real Time Chat</span>
+    </div>
+
+    <div class="header-actions">
+      <div class="status-indicator">
+        <div class="status-dot" [ngClass]="getStatusClass(connectionStatus.status)"></div>
+        <span>{{ connectionStatus.message }}</span>
+      </div>
+
+      <button class="icon-btn" (click)="toggleTheme()" title="Alternar tema">
+        <i class="fas" [ngClass]="currentTheme === 'dark' ? 'fa-moon' : 'fa-sun'"></i>
+      </button>
+
+      <button class="icon-btn mobile-only" (click)="toggleSidebar()" title="Usuários online">
+        <i class="fas fa-users"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" [ngClass]="{ 'open': showSidebar }">
+    <div class="users-section">
+      <div class="section-header">
+        <span>Usuários Online</span>
+        <span class="user-count">{{ users.length }}</span>
+      </div>
+      <div class="users-list">
+        <div 
+          *ngFor="let user of users" 
+          class="user-item"
+          [ngClass]="{ 'me': user.username === chatService.getUsername() }"
+        >
+          <div class="user-avatar" [style.background-color]="user.color || '#6366f1'">
+            <img *ngIf="user.avatar" [src]="user.avatar" [alt]="user.username">
+            <span *ngIf="!user.avatar">{{ user.username.charAt(0).toUpperCase() }}</span>
+            <div class="user-status-dot" [ngClass]="(user.status || 'online').toLowerCase()"></div>
+          </div>
+
+          <div class="user-info">
+            <div class="user-name">{{ user.username }}</div>
+            <div class="user-status" [ngClass]="{ 'user-typing': user.typing }">
+              {{ user.typing ? 'Digitando...' : getStatusText(user.status) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main chat area -->
+  <main class="chat-container">
+    <!-- Welcome screen -->
+    <div class="welcome-screen" *ngIf="showWelcome">
+      <h2>Bem-vindo ao Real Time Chat</h2>
+      <p>Entre no chat e comece a conversar em tempo real!</p>
+
+      <form class="username-form" (ngSubmit)="joinChat()" #usernameForm="ngForm">
+        <div class="form-group">
+          <label class="form-label" for="usernameInput">Escolha seu nome de usuário</label>
+          <input
+            type="text"
+            id="usernameInput"
+            class="form-input"
+            placeholder="Digite seu nome..."
+            [(ngModel)]="username"
+            name="username"
+            autocomplete="off"
+            required
+            maxlength="30"
+            pattern="[a-zA-Z0-9_-]+"
+            title="Apenas letras, números, _ e -"
+          />
+        </div>
+        <button type="submit" class="btn" [disabled]="!usernameForm.valid || connectionStatus.status === 'connecting'">
+          <i class="fas" [ngClass]="{
+            'fa-sign-in-alt': connectionStatus.status !== 'connecting',
+            'fa-spinner loading': connectionStatus.status === 'connecting'
+          }"></i>
+          {{ connectionStatus.status === 'connecting' ? 'Conectando...' : 'Entrar no Chat' }}
+        </button>
+      </form>
+    </div>
+
+    <!-- Messages container -->
+    <div class="messages-container" *ngIf="!showWelcome" #messagesContainer (scroll)="onScroll()">
+      <div 
+        *ngFor="let message of messages" 
+        class="message-group"
+        [ngClass]="{ 'own': isOwnMessage(message), 'other': !isOwnMessage(message) }"
+      >
+        <!-- Message header (for non-system messages) -->
+        <div class="message-header" *ngIf="!isSystemMessage(message) && !isOwnMessage(message)">
+          <div class="message-avatar" *ngIf="message.avatar">
+            <img [src]="message.avatar" [alt]="message.sender">
+          </div>
+          <span [style.color]="message.color || '#6366f1'">{{ message.sender }}</span>
+          <span *ngIf="message.formattedTime">{{ message.formattedTime }}</span>
+        </div>
+
+        <!-- Message bubble -->
+        <div 
+          class="message-bubble"
+          [ngClass]="{
+            'own': isOwnMessage(message),
+            'other': !isOwnMessage(message) && !isSystemMessage(message),
+            'system': isSystemMessage(message),
+            'error': message.type === 'ERROR'
+          }"
+        >
+          <div class="message-content" [innerHTML]="message.content || ''"></div>
+          
+          <!-- Message time (for own messages) -->
+          <div class="message-time" *ngIf="isOwnMessage(message) && message.formattedTime">
+            {{ message.formattedTime }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div class="typing-indicator" *ngIf="!showWelcome && typingUsers.size > 0">
+      <div class="typing-dots">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+      <span>{{ Array.from(typingUsers).join(', ') }} está digitando...</span>
+    </div>
+  </main>
+
+  <!-- Input area -->
+  <div class="input-container" *ngIf="!showWelcome">
+    <form class="message-form" (ngSubmit)="sendMessage()" #messageForm="ngForm">
+      <div class="message-input-wrapper">
+        <textarea
+          #messageInput
+          [(ngModel)]="messageText"
+          name="messageText"
+          class="message-input"
+          placeholder="Digite sua mensagem..."
+          autocomplete="off"
+          maxlength="1000"
+          rows="1"
+          (input)="onMessageInput($event)"
+          (keydown)="onKeyDown($event)"
+        ></textarea>
+
+        <div class="input-actions">
+          <button type="button" class="input-btn" (click)="toggleEmojiPicker()" title="Emojis">
+            <i class="fas fa-smile"></i>
+          </button>
+        </div>
+
+        <!-- Emoji picker -->
+        <div class="emoji-picker" [ngClass]="{ 'active': showEmojiPicker }">
+          <button 
+            *ngFor="let emoji of emojis" 
+            type="button" 
+            class="emoji-btn" 
+            (click)="insertEmoji(emoji)"
+          >
+            {{ emoji }}
+          </button>
+        </div>
+      </div>
+
+      <button 
+        type="submit" 
+        class="send-btn" 
+        [disabled]="!messageText.trim() || !chatService.isConnected()"
+        title="Enviar mensagem"
+      >
+        <i class="fas fa-paper-plane" [class.loading]="!chatService.isConnected()"></i>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Scroll to bottom button -->
+<button 
+  class="scroll-to-bottom" 
+  [ngClass]="{ 'visible': showScrollButton }"
+  (click)="scrollToBottom()"
+  title="Ir para o final"
+>
+  <i class="fas fa-chevron-down"></i>
+</button>
