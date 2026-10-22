@@ -95,6 +95,9 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
       this.chatService.notifications$.subscribe(({ message, type }) => {
         this.showNotification(message, type);
+        if (type === 'error' && (message.includes('já está em uso') || message.includes('Identidade de sessao'))) {
+          this.showWelcome = true;
+        }
       }),
 
       this.privateChatService.unreadCount$.subscribe(count => {

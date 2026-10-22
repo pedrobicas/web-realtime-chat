@@ -25,7 +25,8 @@
   <header class="header">
     <div class="brand">
       <i class="fas fa-comments"></i>
-      <span>Real Time Chat</span>
+      <span>Realtime Chat</span>
+      <span class="dev-build" aria-label="Versão de desenvolvimento">v2 / dev</span>
     </div>
 
     <div class="header-actions">
@@ -70,35 +71,16 @@
             <div class="user-status">Mensagens públicas</div>
           </div>
         </div>
-        <div class="section-subheader mini">Conversas 
-          <span class="badge" *ngIf="privateChatUnreadCount > 0">{{ privateChatUnreadCount }}</span>
+        <div class="private-coming-soon">
+          <i class="fas fa-lock" aria-hidden="true"></i>
+          Conversas privadas exigem contas verificadas e estão em desenvolvimento.
         </div>
-        <div 
-          *ngFor="let conv of filteredConversations"
-          class="user-item" 
-          [class.active]="getOtherParticipantFromConv(conv.id) === activePrivateConversation && showPrivateChat"
-          (click)="startPrivateConversation(getOtherParticipantFromConv(conv.id)); showSidebar = false"
-          title="Abrir conversa privada"
-        >
-          <div class="user-avatar">
-            <i class="fas fa-user"></i>
-          </div>
-          <div class="user-info">
-            <div class="user-name">{{ getOtherParticipantFromConv(conv.id) }}</div>
-            <div class="user-status last-msg">
-              {{ (conv.lastMessage?.sender === username ? 'Você: ' : '') + (conv.lastMessage?.content || 'Sem mensagens') }}
-            </div>
-          </div>
-          <span class="pill" *ngIf="conv.unreadCount > 0">{{ conv.unreadCount }}</span>
-        </div>
-        <div class="empty" *ngIf="filteredConversations.length === 0">Sem conversas</div>
         <div class="section-subheader mini">Usuários Online</div>
         <div 
           *ngFor="let user of filteredUsers" 
-          class="user-item"
+          class="user-item user-item-readonly"
           [ngClass]="{ 'me': user.username === username }"
-          (click)="user.username !== username && startPrivateConversation(user.username); showSidebar = false"
-          title="Iniciar chat privado"
+          title="Usuário conectado — conversas privadas estarão disponíveis em uma versão futura"
         >
           <div class="user-avatar" [style.background-color]="user.color || '#6366f1'">
             <img *ngIf="user.avatar" [src]="user.avatar" [alt]="user.username">
@@ -116,9 +98,14 @@
     </div>
   </aside>
   <main class="chat-container">
+    <div *ngIf="!showWelcome && connectionStatus.status !== 'connected'" class="connection-banner" role="status">
+      <i class="fas fa-wifi" aria-hidden="true"></i>
+      {{ connectionStatus.status === 'connecting' ? 'Conectando...' : 'Conexão perdida. Tentando reconectar...' }}
+    </div>
     <div class="welcome-screen" *ngIf="showWelcome">
       <h2>Bem-vindo ao Real Time Chat</h2>
-      <p>Entre no chat e comece a conversar em tempo real!</p>
+      <p>Uma sala pública, mensagens em tempo real e histórico salvo entre reinicializações.</p>
+      <p class="dev-note">BUILD 2.0.0-dev.1 · Prévia local · Sem contas ou mensagens privadas</p>
 
       <form class="username-form" (ngSubmit)="joinChat()" #usernameForm="ngForm">
         <div class="form-group">
@@ -179,7 +166,7 @@
               'error': message.type === 'ERROR'
             }"
           >
-            <div class="message-content" [innerHTML]="message.content || ''"></div>
+            <div class="message-content">{{ message.content || '' }}</div>
             
             <div class="message-time" *ngIf="message.formattedTime && (isOwnMessage(message) || isSystemMessage(message))">
               {{ message.formattedTime }}
@@ -214,7 +201,7 @@
               'other': !isOwnMessage(message)
             }"
           >
-            <div class="message-content" [innerHTML]="message.content || ''"></div>
+            <div class="message-content">{{ message.content || '' }}</div>
             
             <div class="message-time" *ngIf="message.formattedTime && isOwnMessage(message)">
               {{ message.formattedTime }}

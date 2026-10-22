@@ -1109,3 +1109,48 @@
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
+
+/* Iteracao v2.0.0-dev.1: identificar builds e comunicar estados, sem redesenho total. */
+.dev-build {
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 8px;
+  border: 1px solid rgba(116, 167, 249, .35);
+  color: #93c5fd;
+  border-radius: 5px;
+  background: rgba(59, 130, 246, .10);
+  white-space: nowrap;
+}
+.dev-note {
+  font-size: 12px !important;
+  color: #93c5fd !important;
+  letter-spacing: .02em;
+  margin-top: 12px;
+}
+.connection-banner {
+  margin: 12px 18px 0;
+  padding: 12px 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(249, 165, 76, .4);
+  background: rgba(220, 133, 45, .12);
+  color: #e8ba7d;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+@media(max-width:480px){.dev-build{font-size:9px;padding:4px 6px}}
+
+.private-coming-soon {
+  margin: 14px 12px 20px;
+  padding: 12px 13px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #9aa5bc;
+  border: 1px dashed rgba(149, 162, 189, .22);
+  border-radius: 8px;
+}
+.private-coming-soon i { margin-right: 6px; color: #8db1f4; }
+.user-item-readonly { cursor: default !important; }

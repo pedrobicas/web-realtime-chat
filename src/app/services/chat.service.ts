@@ -7,6 +7,7 @@ declare const SockJS: any;
 declare const Stomp: any;
 
 export interface ChatMessage {
+  id?: string;
   type: 'CHAT' | 'JOIN' | 'LEAVE' | 'SYSTEM_ANNOUNCEMENT' | 'ERROR' | 'PRIVATE_MESSAGE';
   content?: string;
   sender?: string;
@@ -107,17 +108,16 @@ export class ChatService {
       this.onTypingReceived(message);
     });
 
-    // Assinar destino padrão de usuário para mensagens privadas
-    this.stompClient.subscribe('/user/queue/private', (message: any) => {
-      this.onPrivateMessageReceived(message);
-    });
-
     this.stompClient.subscribe('/user/queue/mention', (message: any) => {
       this.onMentionReceived(message);
     });
 
     this.stompClient.subscribe('/user/queue/history', (message: any) => {
       this.onHistoryReceived(message);
+    });
+
+    this.stompClient.subscribe('/user/queue/error', (message: any) => {
+      this.processMessage(JSON.parse(message.body));
     });
 
     // Add user to chat - apenas se não estiver já conectado
@@ -198,8 +198,16 @@ export class ChatService {
 
   private onHistoryReceived(payload: any): void {
     const messages: ChatMessage[] = JSON.parse(payload.body);
-    const currentMessages = this.messagesSubject.value;
-    this.messagesSubject.next([...currentMessages, ...messages]);
+    // O histórico pode chegar depois de mensagens ao vivo: conciliar por ID e ordenar.
+    const combined = [...this.messagesSubject.value, ...messages];
+    const unique = new Map<string, ChatMessage>();
+    for (const message of combined) {
+      const key = message.id || `${message.type}:${message.sender}:${message.timestamp}:${message.content}`;
+      if (!unique.has(key)) unique.set(key, message);
+    }
+    this.messagesSubject.next([...unique.values()].sort((a, b) =>
+      new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
+    ));
   }
 
   private processMessage(message: ChatMessage, isPrivate = false): void {
@@ -213,18 +221,10 @@ export class ChatService {
       return;
     }
 
-    // Verificar se a mensagem já existe para evitar duplicação
+    // IDs vem do servidor: mensagens no mesmo segundo nao sao descartadas indevidamente.
     const currentMessages = this.messagesSubject.value;
-    const messageExists = currentMessages.some(existing => 
-      existing.type === message.type && 
-      existing.sender === message.sender && 
-      (existing.timestamp === message.timestamp || 
-       (existing.type === 'JOIN' && existing.sender === message.sender))
-    );
-
-    if (!messageExists) {
-      this.messagesSubject.next([...currentMessages, message]);
-    }
+    const exists = currentMessages.some(existing => existing.id && existing.id === message.id);
+    if (!exists) this.messagesSubject.next([...currentMessages, message]);
   }
 
   sendMessage(content: string): void {

@@ -1,7 +1,7 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:8081',
-  wsUrl: 'http://localhost:8081/ws',
-  appName: 'Real Time Chat',
-  version: '1.0.0'
+  apiUrl: '/api',
+  wsUrl: '/ws',
+  appName: 'Realtime Chat — Development',
+  version: '2.0.0-dev.1'
 };

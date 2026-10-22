@@ -1,152 +1,40 @@
-# Frontend - Real Time Chat (Angular)
+# Realtime Chat v2 — Frontend (development)
 
-## Visão Geral
+Angular + TypeScript frontend for the [Realtime Chat backend](https://github.com/pedrobicas/java-realtime-chat).
 
-Interface web do sistema de chat em tempo real construída em Angular, integrada ao backend Java Spring Boot via WebSocket (STOMP) e REST.
+**Version:** `2.0.0-dev.1` — development preview; not production-ready.
 
-## Tecnologias Utilizadas
+## Run locally
 
-- Angular 18
-- TypeScript
-- SCSS
-- RxJS
-- SockJS
-- STOMP.js
+Requirements: Node.js 22+, npm, and the corresponding Spring Boot backend running on `http://localhost:8081`.
 
-## Estrutura do Projeto
-
-```
-web-realtime-chat/
-├── src/
-│   ├── app/
-│   │   └── components/
-│   │       └── chat/
-│   │           ├── chat.component.ts         # Lógica do componente
-│   │           ├── chat.component.html       # Template
-│   │           └── chat.component.scss       # Estilos
-│   ├── styles.scss                           # Estilos globais
-│   └── styles/variables.scss                 # Variáveis SCSS (cores, temas)
-├── proxy.conf.json                           # Proxy para backend
-└── angular.json                              # Configuração Angular
-```
-
-## Funcionalidades Implementadas
-
-### UI e Experiência
-- Tema claro/escuro com CSS variables
-- Layout responsivo (desktop e mobile)
-- Animações suaves e microinterações
-- Lista de usuários online com status
-- Notificações integradas
-
-### Chat
-- Envio/recebimento de mensagens públicas
-- Indicador de digitação
-- Histórico de mensagens
-- Chat privado integrado (filas de usuário)
-
-## Integração com Backend
-
-### Endpoints WebSocket
-- `/ws` (ou `/ws-native`) – conexão principal
-- `/topic/public` – mensagens públicas
-- `/topic/users` – lista/atualizações de usuários
-- `/topic/typing` – indicador de digitação
-- `/user/queue/private` – mensagens privadas
-- `/user/queue/mention` – menções
-- `/user/queue/history` – histórico inicial
-
-### Comandos STOMP
-- `/app/chat.addUser` – adicionar usuário
-- `/app/chat.send` – enviar mensagem pública
-- `/app/chat.typing` – notificar digitação
-- `/app/chat.private` – enviar mensagem privada
-
-## API REST Consumida
-
-```
-GET  /api/chat/users
-GET  /api/chat/users/{username}
-GET  /api/chat/users/{username}/status
-GET  /api/chat/users/search?query={}
-GET  /api/chat/stats
-GET  /api/chat/health
-GET  /api/chat/private/conversations/{username}
-GET  /api/chat/private/conversation/{user1}/{user2}
-POST /api/chat/private/mark-read
-```
-
-## Instalação e Execução
-
-### Pré-requisitos
-- Node.js 18+
-- npm ou yarn
-
-### Passos
-```bash
-# Dentro do diretório do frontend
-cd web-realtime-chat
-
-# Instalar dependências
-npm install
-
-# Iniciar em desenvolvimento
+```sh
+npm ci
 npm start
 ```
 
-Frontend: `http://localhost:4200`
+Open `http://localhost:4200`. `proxy.conf.json` forwards `/api` and `/ws` to the backend on port `8081`. The UI expects both endpoints on the same browser origin via that proxy.
 
-## Configuração do Proxy
+## Checks
 
-Arquivo `proxy.conf.json` (exemplo):
-```json
-{
-  "/ws": {
-    "target": "http://localhost:8080",
-    "secure": false,
-    "changeOrigin": true,
-    "ws": true
-  }
-}
+```sh
+npm run build
+npm test -- --watch=false
 ```
 
-## Scripts Disponíveis
+## v2 changes
 
-```bash
-npm start         # Dev server com proxy
-npm run build     # Build de produção
-npm run watch     # Build contínuo
-npm test          # Testes unitários
-```
+- Public-message persistence is implemented **on the backend**; the frontend displays restored history.
+- Development version indicator and reconnect notice.
+- HTML is displayed as literal message text rather than injected as markup.
+- Legacy private-chat UI and endpoints are disabled until proper authentication/authorization exists.
 
-## Arquitetura (Frontend)
+## Deployment and security
 
-1. Componente `ChatComponent`
-   - Gerencia estado de UI e interações
-   - Renderiza mensagens, sidebar e input
-2. Serviço de WebSocket (via STOMP)
-   - Conecta ao backend e gerencia tópicos/filas
-   - Trata reconexão e fallback SockJS
-3. Estilos e Temas
-   - `styles.scss` global e `styles/variables.scss` para tokens de design
+Do not expose this preview publicly. It lacks accounts, authentication, abuse controls and production hardening. GitHub stores the source code; GitHub Pages can host **static Angular output only**, not the Java WebSocket service or database. A public hosted version requires an HTTPS reverse proxy, a persistently running backend and DB, CORS/origin policy, rate limits, authentication/authorization and secure WS (WSS).
 
-## Troubleshooting
+For the single-machine Docker Compose demonstration, download the **combined workspace ZIP** from the ChatGPT conversation: its root `compose.yaml` expects sibling `frontend/` and `backend/` directories.
 
-### WebSocket não conecta
-- Verifique se o backend está em `http://localhost:8080`
-- Confirme o proxy `proxy.conf.json`
-- Veja erros no console do navegador
+## Project state
 
-### Estilos/tema não aplicam
-- Garanta o import em `src/styles.scss`:
-```scss
-@import './styles/variables.scss';
-```
-
-### Portas em uso
-- Altere a porta do dev server Angular em `angular.json` ou via CLI (`--port=4201`)
-
-## Licença
-
-Projeto sob licença MIT.
-
+This repository retains its original history. The v2 preview should be developed on a dedicated `develop/v2` branch and validated before being merged into `master`.
