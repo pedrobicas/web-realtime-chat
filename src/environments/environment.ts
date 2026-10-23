@@ -3,5 +3,5 @@ export const environment = {
   apiUrl: '/api',
   wsUrl: '/ws',
   appName: 'Realtime Chat — Development',
-  version: '2.0.0-dev.1'
+  version: '2.0.0-dev.2'
 };

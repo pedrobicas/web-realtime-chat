@@ -1,6 +1,6 @@
 {
   "name": "realtimechat-v2-frontend",
-  "version": "2.0.0-dev.1",
+  "version": "2.0.0-dev.2",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

@@ -14,10 +14,10 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'web-realtime-chat' title`, () => {
+  it(`should have the 'Real Time Chat' title`, () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
-    expect(app.title).toEqual('web-realtime-chat');
+    expect(app.title).toEqual('Real Time Chat');
   });
 
   it('should render title', () => {

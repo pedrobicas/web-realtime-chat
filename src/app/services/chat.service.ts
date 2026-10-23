@@ -120,20 +120,10 @@ export class ChatService {
       this.processMessage(JSON.parse(message.body));
     });
 
-    // Add user to chat - apenas se não estiver já conectado
-    const currentMessages = this.messagesSubject.value;
-    const alreadyJoined = currentMessages.some(msg => 
-      msg.type === 'JOIN' && msg.sender === this.username
-    );
-    
-    if (!alreadyJoined) {
-      const joinMessage: ChatMessage = {
-        type: 'JOIN',
-        sender: this.username
-      };
-
-      this.stompClient.send('/app/chat.addUser', {}, JSON.stringify(joinMessage));
-    }
+    // Every *new WebSocket session* must register, including after reconnect.
+    // Old history messages do not prove that this connection has joined.
+    const joinMessage: ChatMessage = { type: 'JOIN', sender: this.username };
+    this.stompClient.send('/app/chat.addUser', {}, JSON.stringify(joinMessage));
 
     // Clear reconnection interval
     if (this.reconnectInterval) {
@@ -154,8 +144,11 @@ export class ChatService {
     // Auto reconnect
     if (!this.reconnectInterval) {
       this.reconnectInterval = setInterval(() => {
-        if (this.username && !this.connected) {
-          this.connect(this.username).catch(console.error);
+        if (this.username && !this.connected &&
+            this.connectionStatusSubject.value.status !== 'connecting') {
+          this.connect(this.username).catch(() => {
+            // onError already updates status; next retry is scheduled.
+          });
         }
       }, 5000);
     }

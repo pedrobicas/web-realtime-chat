@@ -1,0 +1,43 @@
+name: realtime-chat-v2
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: realtimechat
+      POSTGRES_USER: realtimechat
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-local-dev-only}
+    volumes:
+      - realtimechat-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U realtimechat -d realtimechat"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    build:
+      context: ../java-realtime-chat
+    restart: unless-stopped
+    environment:
+      PORT: 8081
+      DB_URL: jdbc:postgresql://postgres:5432/realtimechat
+      DB_USER: realtimechat
+      DB_PASSWORD: ${DB_PASSWORD:-local-dev-only}
+      DB_DRIVER: org.postgresql.Driver
+      CHAT_ALLOWED_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  realtimechat-data:

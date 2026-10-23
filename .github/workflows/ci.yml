@@ -1,14 +1,15 @@
-name: Frontend CI (v2 development)
+name: Frontend CI
 
 on:
   push:
+    branches: [master, 'develop/**']
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  angular-build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,5 +17,11 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
-      - run: npm run build
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Test (Chrome Headless)
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+        run: npm test -- --watch=false --browsers=ChromeHeadless

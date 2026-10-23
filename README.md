@@ -1,40 +1,54 @@
-# Realtime Chat v2 — Frontend (development)
+# Realtime Chat v2 — Angular
 
-Angular + TypeScript frontend for the [Realtime Chat backend](https://github.com/pedrobicas/java-realtime-chat).
+Frontend Angular para a [API Spring Boot](https://github.com/pedrobicas/java-realtime-chat). Branch de desenvolvimento: `develop/v2`.
 
-**Version:** `2.0.0-dev.1` — development preview; not production-ready.
+**Versão:** `2.0.0-dev.2` (prévia de desenvolvimento, não pronta para deploy público).
 
-## Run locally
+## Execução local sem Docker
 
-Requirements: Node.js 22+, npm, and the corresponding Spring Boot backend running on `http://localhost:8081`.
+Requisitos: **Node.js 22+**, npm e backend iniciado em `http://localhost:8081`.
 
 ```sh
 npm ci
 npm start
 ```
 
-Open `http://localhost:4200`. `proxy.conf.json` forwards `/api` and `/ws` to the backend on port `8081`. The UI expects both endpoints on the same browser origin via that proxy.
+Abra `http://localhost:4200`. O arquivo `proxy.conf.json` encaminha `/ws` e `/api` para o backend. O chat público funciona com apelido temporário; não há autenticação.
 
-## Checks
+## Execução conjunta com Docker Compose
 
-```sh
-npm run build
-npm test -- --watch=false
+Clone os **dois** repositórios no mesmo diretório, com os nomes abaixo:
+
+```text
+projects/
+├── java-realtime-chat/  # Spring Boot
+└── web-realtime-chat/   # Angular + compose.yaml
 ```
 
-## v2 changes
+Na pasta `web-realtime-chat`:
 
-- Public-message persistence is implemented **on the backend**; the frontend displays restored history.
-- Development version indicator and reconnect notice.
-- HTML is displayed as literal message text rather than injected as markup.
-- Legacy private-chat UI and endpoints are disabled until proper authentication/authorization exists.
+```sh
+docker compose up --build
+```
 
-## Deployment and security
+Acesse `http://localhost:8080`. Os serviços são: Angular/Nginx, Spring Boot e PostgreSQL com volume persistente. Não é necessário baixar outro workspace ou copiar arquivos para uma terceira pasta.
 
-Do not expose this preview publicly. It lacks accounts, authentication, abuse controls and production hardening. GitHub stores the source code; GitHub Pages can host **static Angular output only**, not the Java WebSocket service or database. A public hosted version requires an HTTPS reverse proxy, a persistently running backend and DB, CORS/origin policy, rate limits, authentication/authorization and secure WS (WSS).
+Para desligar, use `docker compose down`. **Não use `docker compose down -v` se quiser preservar o banco**.
 
-For the single-machine Docker Compose demonstration, download the **combined workspace ZIP** from the ChatGPT conversation: its root `compose.yaml` expects sibling `frontend/` and `backend/` directories.
+## Testes e build
 
-## Project state
+```sh
+npm ci
+npm run build
+npm test -- --watch=false --browsers=ChromeHeadless
+```
 
-This repository retains its original history. The v2 preview should be developed on a dedicated `develop/v2` branch and validated before being merged into `master`.
+No CI, o Google Chrome é fornecido pelo runner `ubuntu-latest`; o workflow compila **e** roda os testes, diferente da prévia anterior.
+
+## Limitações desta prévia
+
+- Sem contas, autenticação, autorização para mensagens privadas ou proteção contra abuso.
+- O cliente STOMP legado ainda depende de scripts carregados por CDN. Migração para pacote mantido é etapa futura que exige atualização do lockfile e testes de WebSocket.
+- Ainda em Angular 18. Atualização progressiva para versões suportadas será feita em outra etapa com validação de testes a cada major.
+
+Ver [CHANGELOG](CHANGELOG.md) e [decisões](docs/DECISIONS.md).
