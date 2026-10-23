@@ -31,7 +31,7 @@ Na pasta `web-realtime-chat`:
 docker compose up --build
 ```
 
-No CI, o Google Chrome é fornecido pelo runner `ubuntu-latest`, e o workflow compila e roda os testes.
+Acesse `http://localhost:8080`. Os serviços são: Angular/Nginx, Spring Boot e PostgreSQL com volume persistente.
 
 Para desligar, use `docker compose down`. **Não use `docker compose down -v` se quiser preservar o banco**.
 
@@ -43,7 +43,7 @@ npm run build
 npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-No CI, o Google Chrome é fornecido pelo runner `ubuntu-latest`; o workflow compila **e** roda os testes, diferente da prévia anterior.
+No CI, o Google Chrome é fornecido pelo runner `ubuntu-latest`, e o workflow compila e roda os testes.
 
 ## Limitações desta prévia
 
