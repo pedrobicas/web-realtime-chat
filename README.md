@@ -31,7 +31,7 @@ Na pasta `web-realtime-chat`:
 docker compose up --build
 ```
 
-Acesse `http://localhost:8080`. Os serviços são: Angular/Nginx, Spring Boot e PostgreSQL com volume persistente. Não é necessário baixar outro workspace ou copiar arquivos para uma terceira pasta.
+No CI, o Google Chrome é fornecido pelo runner `ubuntu-latest`, e o workflow compila e roda os testes.
 
 Para desligar, use `docker compose down`. **Não use `docker compose down -v` se quiser preservar o banco**.
 
