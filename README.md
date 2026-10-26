@@ -13,7 +13,9 @@ npm ci
 npm start
 ```
 
-Abra `http://localhost:4200`. O arquivo `proxy.conf.json` encaminha `/ws` e `/api` para o backend. O chat público funciona com apelido temporário; não há autenticação.
+Abra `http://localhost:4200`. O arquivo `proxy.conf.json` encaminha `/ws` e `/api` para o backend. O chat público usa uma identidade temporária de visitante; não há contas permanentes.
+
+Antes de abrir o STOMP, o cliente reserva o apelido em `POST /api/chat/session`, guarda o token em `sessionStorage` e o envia no cabeçalho `Authorization` do STOMP `CONNECT`. A reconexão reutiliza esse token e envia um novo JOIN. O logout remove o token e encerra a reserva em `DELETE /api/chat/session`. Conversas privadas continuam desabilitadas nesta prévia.
 
 ## Execução conjunta com Docker Compose
 
@@ -47,20 +49,8 @@ No CI, o Google Chrome é fornecido pelo runner `ubuntu-latest`, e o workflow co
 
 ## Limitações desta prévia
 
-- Sem contas, autenticação, autorização para mensagens privadas ou proteção contra abuso.
+- Sem contas permanentes ou proteção contra abuso. Tokens de visitante não equivalem a login com identidade verificada; mensagens privadas continuam desabilitadas.
 - O cliente STOMP legado ainda depende de scripts carregados por CDN. Migração para pacote mantido é etapa futura que exige atualização do lockfile e testes de WebSocket.
 - Ainda em Angular 18. Atualização progressiva para versões suportadas será feita em outra etapa com validação de testes a cada major.
 
-<<<<<<< Updated upstream
 Ver [CHANGELOG](CHANGELOG.md) e [decisões](docs/DECISIONS.md).
-=======
-
-## Guest session flow (stage 1)
-
-Before opening STOMP, the client reserves its guest username via the back-end
-`POST /api/chat/session` API. The opaque token is stored in `sessionStorage` and
-used only as a STOMP `CONNECT` header (`Authorization: Bearer <token>`).
-Private conversation REST endpoints also require that header. The client sends
-`JOIN` on every successful STOMP connection and deduplicates messages by their
-server-generated `id`. This demo does not implement permanent user accounts.
->>>>>>> Stashed changes

@@ -6,6 +6,8 @@
 - Backend: `mvn verify`.
 - O workflow do GitHub Actions deve ficar verde nos **dois** repositórios.
 
+Os testes de `ChatService` verificam a rota de sessão, cabeçalho de token, JOIN em reconexão, assinatura única de erros, falha de reserva e reconciliação do histórico por ID sem conteúdo privado. A suíte inclui também os testes do componente principal.
+
 ## 2. Integração local
 
 Execute `docker compose up --build` com `java-realtime-chat` e `web-realtime-chat` como pastas irmãs.

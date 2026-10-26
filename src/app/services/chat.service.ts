@@ -39,11 +39,13 @@ export interface ConnectionStatus {
 })
 export class ChatService {
   private stompClient: any = null;
+  private socket: any = null;
   private connected = false;
   private reconnectInterval: any = null;
   private username: string = '';
   private guestToken: string | null = null;
   private connectionPromise: Promise<void> | null = null;
+  private connectionAttempt = 0;
   private manuallyDisconnected = false;
 
   // Observables
@@ -71,18 +73,19 @@ export class ChatService {
     if (this.connectionPromise) return this.connectionPromise;
     this.manuallyDisconnected = false;
     this.username = username;
-    this.connectionPromise = this.connectInternal(username).finally(() => {
-      this.connectionPromise = null;
+    const attempt = ++this.connectionAttempt;
+    this.connectionPromise = this.connectInternal(username, attempt).finally(() => {
+      if (attempt === this.connectionAttempt) this.connectionPromise = null;
     });
     return this.connectionPromise;
   }
 
-  private async ensureGuestIdentity(username: string): Promise<string> {
+  private async ensureGuestIdentity(username: string, attempt: number): Promise<string> {
     const tokenKey = 'chat-guest-token';
     const userKey = 'chat-guest-username';
     const savedUsername = sessionStorage.getItem(userKey);
     const savedToken = savedUsername === username ? sessionStorage.getItem(tokenKey) : null;
-    const response = await fetch(`${environment.apiUrl}/api/chat/session`, {
+    const response = await fetch(`${environment.apiUrl}/chat/session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, token: savedToken })
@@ -92,32 +95,52 @@ export class ChatService {
       throw new Error(`Falha ao iniciar sessão: HTTP ${response.status}`);
     }
     const credentials: { username: string; token: string } = await response.json();
+    if (attempt !== this.connectionAttempt) {
+      this.releaseGuestIdentity(credentials.token);
+      throw new Error('Conexão cancelada');
+    }
     this.guestToken = credentials.token;
     sessionStorage.setItem(tokenKey, credentials.token);
     sessionStorage.setItem(userKey, credentials.username);
     return credentials.token;
   }
 
-  private async connectInternal(username: string): Promise<void> {
+  private async connectInternal(username: string, attempt: number): Promise<void> {
     this.updateConnectionStatus('connecting', 'Conectando...');
-    const token = await this.ensureGuestIdentity(username);
+    let token: string;
+    try {
+      token = await this.ensureGuestIdentity(username, attempt);
+    } catch (error) {
+      if (attempt === this.connectionAttempt) {
+        this.updateConnectionStatus('disconnected', 'Falha ao iniciar sessão');
+      }
+      throw error;
+    }
+    if (attempt !== this.connectionAttempt) throw new Error('Conexão cancelada');
     return new Promise<void>((resolve, reject) => {
       try {
         const socket = new SockJS(environment.wsUrl);
-        this.stompClient = Stomp.over(socket);
-        this.stompClient.debug = null;
-        this.stompClient.connect({ Authorization: `Bearer ${token}` },
+        this.socket = socket;
+        const client = Stomp.over(socket);
+        this.stompClient = client;
+        client.debug = null;
+        client.connect({ Authorization: `Bearer ${token}` },
           () => {
+            if (attempt !== this.connectionAttempt) {
+              client.disconnect();
+              reject(new Error('Conexão cancelada'));
+              return;
+            }
             this.onConnected();
             resolve();
           },
           (error: any) => {
-            this.onError(error);
+            if (attempt === this.connectionAttempt) this.onError(error);
             reject(error);
           }
         );
       } catch (error) {
-        this.onError(error);
+        if (attempt === this.connectionAttempt) this.onError(error);
         reject(error);
       }
     });
@@ -151,16 +174,8 @@ export class ChatService {
       this.processMessage(JSON.parse(message.body));
     });
 
-<<<<<<< Updated upstream
-    this.stompClient.subscribe('/user/queue/error', (message: any) => {
-      this.processMessage(JSON.parse(message.body));
-    });
-
     // Every *new WebSocket session* must register, including after reconnect.
     // Old history messages do not prove that this connection has joined.
-=======
-    // Every new STOMP session needs JOIN, even if local history already has JOIN.
->>>>>>> Stashed changes
     const joinMessage: ChatMessage = { type: 'JOIN', sender: this.username };
     this.stompClient.send('/app/chat.addUser', {}, JSON.stringify(joinMessage));
 
@@ -231,25 +246,17 @@ export class ChatService {
 
   private onHistoryReceived(payload: any): void {
     const messages: ChatMessage[] = JSON.parse(payload.body);
-<<<<<<< Updated upstream
     // O histórico pode chegar depois de mensagens ao vivo: conciliar por ID e ordenar.
     const combined = [...this.messagesSubject.value, ...messages];
     const unique = new Map<string, ChatMessage>();
     for (const message of combined) {
+      if (message.type === 'PRIVATE_MESSAGE' || message.isPrivate) continue;
       const key = message.id || `${message.type}:${message.sender}:${message.timestamp}:${message.content}`;
       if (!unique.has(key)) unique.set(key, message);
     }
     this.messagesSubject.next([...unique.values()].sort((a, b) =>
       new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
     ));
-=======
-    for (const message of messages) {
-      // Defense-in-depth; the server must enforce this as well.
-      if (message.type !== 'PRIVATE_MESSAGE' && !message.isPrivate) {
-        this.processMessage(message);
-      }
-    }
->>>>>>> Stashed changes
   }
 
   private processMessage(message: ChatMessage, isPrivate = false): void {
@@ -265,23 +272,8 @@ export class ChatService {
 
     // IDs vem do servidor: mensagens no mesmo segundo nao sao descartadas indevidamente.
     const currentMessages = this.messagesSubject.value;
-<<<<<<< Updated upstream
     const exists = currentMessages.some(existing => existing.id && existing.id === message.id);
     if (!exists) this.messagesSubject.next([...currentMessages, message]);
-=======
-    const messageExists = currentMessages.some(existing =>
-      existing.id && message.id
-        ? existing.id === message.id
-        : (existing.type === message.type &&
-           existing.sender === message.sender &&
-           existing.content === message.content &&
-           existing.timestamp === message.timestamp)
-    );
-
-    if (!messageExists) {
-      this.messagesSubject.next([...currentMessages, message]);
-    }
->>>>>>> Stashed changes
   }
 
   sendMessage(content: string): void {
@@ -322,18 +314,20 @@ export class ChatService {
 
   disconnect(): void {
     this.manuallyDisconnected = true;
+    this.connectionAttempt++;
+    this.connectionPromise = null;
     const token = this.guestToken;
     this.guestToken = null;
     sessionStorage.removeItem('chat-guest-token');
     sessionStorage.removeItem('chat-guest-username');
-    if (token) {
-      void fetch(`${environment.apiUrl}/api/chat/session`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` }, keepalive: true
-      }).catch(() => { /* Network loss: server expiry is the fallback. */ });
-    }
+    if (token) this.releaseGuestIdentity(token);
     if (this.stompClient && this.connected) {
       this.stompClient.disconnect();
+    } else if (this.socket) {
+      this.socket.close();
     }
+    this.stompClient = null;
+    this.socket = null;
     this.connected = false;
     this.updateConnectionStatus('disconnected', 'Desconectado');
     
@@ -345,6 +339,12 @@ export class ChatService {
       clearInterval(this.reconnectInterval);
       this.reconnectInterval = null;
     }
+  }
+
+  private releaseGuestIdentity(token: string): void {
+    void fetch(`${environment.apiUrl}/chat/session`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` }, keepalive: true
+    }).catch(() => { /* Network loss: server expiry is the fallback. */ });
   }
 
   private updateConnectionStatus(status: ConnectionStatus['status'], message: string): void {

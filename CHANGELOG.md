@@ -1,5 +1,12 @@
 # Changelog
 
+## Correções de merge — 2026-10-26
+- Resolvidos conflitos em `ChatService` e README.
+- Corrigidas as rotas de criação/logout de sessão e a assinatura duplicada de erros.
+- Falhas na reserva de apelido voltam ao estado desconectado e permitem nova tentativa.
+- Histórico tardio preserva mensagens ao vivo, ordena por data, elimina duplicatas e filtra mensagens privadas.
+- Adicionados testes do serviço e detecção de conflitos no CI.
+
 ## 2.0.0-dev.2 — quality / reproducible setup
 - Corrigida a expectativa de título nos testes Angular.
 - Ao reconectar, registra o apelido novamente na nova sessão STOMP (o histórico anterior não suprime o JOIN).
