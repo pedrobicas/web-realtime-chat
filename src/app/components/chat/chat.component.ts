@@ -140,7 +140,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.focusMessageInput();
     } catch (error) {
       console.error('Erro ao conectar:', error);
-      this.showNotification('Erro ao conectar ao chat', 'error');
+      this.showNotification(error instanceof Error ? error.message : 'Erro ao conectar ao chat', 'error');
     }
   }
 
@@ -400,7 +400,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   getStatusText(status: string): string {
-    switch (status) {
+    switch ((status || '').toLowerCase()) {
       case 'online': return 'Online';
       case 'away': return 'Ausente';
       case 'busy': return 'Ocupado';

@@ -42,6 +42,9 @@ export class ChatService {
   private connected = false;
   private reconnectInterval: any = null;
   private username: string = '';
+  private guestToken: string | null = null;
+  private connectionPromise: Promise<void> | null = null;
+  private manuallyDisconnected = false;
 
   // Observables
   private messagesSubject = new BehaviorSubject<ChatMessage[]>([]);
@@ -65,16 +68,45 @@ export class ChatService {
   constructor() {}
 
   connect(username: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.username = username;
-      this.updateConnectionStatus('connecting', 'Conectando...');
+    if (this.connectionPromise) return this.connectionPromise;
+    this.manuallyDisconnected = false;
+    this.username = username;
+    this.connectionPromise = this.connectInternal(username).finally(() => {
+      this.connectionPromise = null;
+    });
+    return this.connectionPromise;
+  }
 
+  private async ensureGuestIdentity(username: string): Promise<string> {
+    const tokenKey = 'chat-guest-token';
+    const userKey = 'chat-guest-username';
+    const savedUsername = sessionStorage.getItem(userKey);
+    const savedToken = savedUsername === username ? sessionStorage.getItem(tokenKey) : null;
+    const response = await fetch(`${environment.apiUrl}/api/chat/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, token: savedToken })
+    });
+    if (!response.ok) {
+      if (response.status === 409) throw new Error('Nome de usuário já está em uso');
+      throw new Error(`Falha ao iniciar sessão: HTTP ${response.status}`);
+    }
+    const credentials: { username: string; token: string } = await response.json();
+    this.guestToken = credentials.token;
+    sessionStorage.setItem(tokenKey, credentials.token);
+    sessionStorage.setItem(userKey, credentials.username);
+    return credentials.token;
+  }
+
+  private async connectInternal(username: string): Promise<void> {
+    this.updateConnectionStatus('connecting', 'Conectando...');
+    const token = await this.ensureGuestIdentity(username);
+    return new Promise<void>((resolve, reject) => {
       try {
-        const socket = new SockJS(`${environment.wsUrl}?username=${encodeURIComponent(this.username)}`);
+        const socket = new SockJS(environment.wsUrl);
         this.stompClient = Stomp.over(socket);
-        this.stompClient.debug = null; // Disable console logs
-
-        this.stompClient.connect({},
+        this.stompClient.debug = null;
+        this.stompClient.connect({ Authorization: `Bearer ${token}` },
           () => {
             this.onConnected();
             resolve();
@@ -115,13 +147,20 @@ export class ChatService {
     this.stompClient.subscribe('/user/queue/history', (message: any) => {
       this.onHistoryReceived(message);
     });
+    this.stompClient.subscribe('/user/queue/error', (message: any) => {
+      this.processMessage(JSON.parse(message.body));
+    });
 
+<<<<<<< Updated upstream
     this.stompClient.subscribe('/user/queue/error', (message: any) => {
       this.processMessage(JSON.parse(message.body));
     });
 
     // Every *new WebSocket session* must register, including after reconnect.
     // Old history messages do not prove that this connection has joined.
+=======
+    // Every new STOMP session needs JOIN, even if local history already has JOIN.
+>>>>>>> Stashed changes
     const joinMessage: ChatMessage = { type: 'JOIN', sender: this.username };
     this.stompClient.send('/app/chat.addUser', {}, JSON.stringify(joinMessage));
 
@@ -135,6 +174,7 @@ export class ChatService {
   }
 
   private onError(error: any): void {
+    if (this.manuallyDisconnected) return;
     console.error('Connection error:', error);
     this.connected = false;
     this.updateConnectionStatus('disconnected', 'Erro de conexão');
@@ -191,6 +231,7 @@ export class ChatService {
 
   private onHistoryReceived(payload: any): void {
     const messages: ChatMessage[] = JSON.parse(payload.body);
+<<<<<<< Updated upstream
     // O histórico pode chegar depois de mensagens ao vivo: conciliar por ID e ordenar.
     const combined = [...this.messagesSubject.value, ...messages];
     const unique = new Map<string, ChatMessage>();
@@ -201,6 +242,14 @@ export class ChatService {
     this.messagesSubject.next([...unique.values()].sort((a, b) =>
       new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
     ));
+=======
+    for (const message of messages) {
+      // Defense-in-depth; the server must enforce this as well.
+      if (message.type !== 'PRIVATE_MESSAGE' && !message.isPrivate) {
+        this.processMessage(message);
+      }
+    }
+>>>>>>> Stashed changes
   }
 
   private processMessage(message: ChatMessage, isPrivate = false): void {
@@ -216,8 +265,23 @@ export class ChatService {
 
     // IDs vem do servidor: mensagens no mesmo segundo nao sao descartadas indevidamente.
     const currentMessages = this.messagesSubject.value;
+<<<<<<< Updated upstream
     const exists = currentMessages.some(existing => existing.id && existing.id === message.id);
     if (!exists) this.messagesSubject.next([...currentMessages, message]);
+=======
+    const messageExists = currentMessages.some(existing =>
+      existing.id && message.id
+        ? existing.id === message.id
+        : (existing.type === message.type &&
+           existing.sender === message.sender &&
+           existing.content === message.content &&
+           existing.timestamp === message.timestamp)
+    );
+
+    if (!messageExists) {
+      this.messagesSubject.next([...currentMessages, message]);
+    }
+>>>>>>> Stashed changes
   }
 
   sendMessage(content: string): void {
@@ -257,6 +321,16 @@ export class ChatService {
   }
 
   disconnect(): void {
+    this.manuallyDisconnected = true;
+    const token = this.guestToken;
+    this.guestToken = null;
+    sessionStorage.removeItem('chat-guest-token');
+    sessionStorage.removeItem('chat-guest-username');
+    if (token) {
+      void fetch(`${environment.apiUrl}/api/chat/session`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` }, keepalive: true
+      }).catch(() => { /* Network loss: server expiry is the fallback. */ });
+    }
     if (this.stompClient && this.connected) {
       this.stompClient.disconnect();
     }

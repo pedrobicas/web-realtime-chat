@@ -68,11 +68,13 @@ export class PrivateChatService {
     const conversation = conversations.get(conversationId);
 
     if (conversation) {
+      if (message.id && conversation.messages.some(existing => existing.id === message.id)) return;
       conversation.messages.push(message);
       conversation.lastMessage = message;
       
       // Incrementar contador de não lidas se não for a conversa ativa OU o painel não está visível
-      if (conversation.id !== this.activeConversationSubject.value || !this.panelVisible) {
+      if (message.sender !== this.chatService.getUsername() &&
+          (conversation.id !== this.activeConversationSubject.value || !this.panelVisible)) {
         conversation.unreadCount++;
         this.updateTotalUnreadCount();
       }
@@ -260,20 +262,23 @@ export class PrivateChatService {
       return;
     }
 
-    // Determinar o usuário atual (receptor da mensagem)
-    const currentUser = message.recipient;
-    const sender = message.sender;
+    // A private message is echoed to both participants; use the authenticated local user.
+    const currentUser = this.chatService.getUsername();
+    if (message.sender !== currentUser && message.recipient !== currentUser) return;
+    const otherUser = message.sender === currentUser ? message.recipient : message.sender;
+    if (!otherUser) return;
 
     // Encontrar ou criar conversa
-    let conversation = this.getConversationBetweenUsers(currentUser, sender);
+    let conversation = this.getConversationBetweenUsers(currentUser, otherUser);
     if (!conversation) {
-      const conversationId = this.startConversation(currentUser, sender);
+      const conversationId = this.startConversation(currentUser, otherUser);
       conversation = this.getConversation(conversationId);
     }
 
     if (conversation) {
       // Adicionar mensagem à conversa
       const privateMessage: PrivateMessage = {
+        id: message.id,
         type: message.type,
         content: message.content,
         sender: message.sender,
